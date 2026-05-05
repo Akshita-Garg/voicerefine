@@ -1,4 +1,4 @@
-import { pipeline, env } from '@xenova/transformers'
+import { pipeline, env } from '@huggingface/transformers'
 
 // Load model weights from Hugging Face CDN (not a local copy).
 // After first download they are cached in the browser's IndexedDB.

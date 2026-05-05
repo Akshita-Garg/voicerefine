@@ -7,7 +7,7 @@ export default defineConfig({
   optimizeDeps: {
     // @xenova/transformers uses dynamic imports internally; pre-bundling it
     // causes resolution errors. Exclude it and let the browser handle it.
-    exclude: ['@xenova/transformers'],
+    exclude: ['@huggingface/transformers'],
   },
   server: {
     // onnxruntime-web (used by @xenova/transformers) needs SharedArrayBuffer
