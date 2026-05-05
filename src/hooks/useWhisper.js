@@ -1,20 +1,27 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 
+// ?worker tells Vite to bundle this file and all its imports (including
+// @xenova/transformers) as a separate worker chunk. Without this, Vite in
+// dev mode serves the worker as a raw ES module and the browser tries to
+// resolve bare specifiers like 'import from "@xenova/transformers"' itself —
+// which fails because browsers can't resolve node_modules bare specifiers.
+import WhisperWorker from '../workers/whisper.worker.js?worker'
+
 export function useWhisper() {
   const [status, setStatus] = useState('idle') // 'idle' | 'loading' | 'processing' | 'error'
   const [transcript, setTranscript] = useState('')
   const [loadProgress, setLoadProgress] = useState(null) // 0-100 while downloading, null otherwise
 
   const workerRef = useRef(null)
-  const objectUrlRef = useRef(null) // held so we can revoke it after the worker is done
+  const objectUrlRef = useRef(null)
 
   useEffect(() => {
-    // new URL(..., import.meta.url) is Vite's way to reference a worker file
-    // so the bundler can find and bundle it correctly.
-    const worker = new Worker(
-      new URL('../workers/whisper.worker.js', import.meta.url),
-      { type: 'module' }
-    )
+    const worker = new WhisperWorker()
+
+    worker.onerror = (e) => {
+      console.error('[Whisper worker] load error:', e.message, e)
+      setStatus('error')
+    }
 
     worker.onmessage = ({ data }) => {
       switch (data.type) {
@@ -23,8 +30,6 @@ export function useWhisper() {
           setLoadProgress(0)
           break
         case 'progress':
-          // Only the 'progress' status events carry a download percentage.
-          // 'initiate' and 'done' events fire for each file but have no progress number.
           if (data.data?.status === 'progress') {
             setLoadProgress(Math.round(data.data.progress))
           }
@@ -39,7 +44,7 @@ export function useWhisper() {
           revokeUrl()
           break
         case 'error':
-          console.error('[Whisper worker]', data.message)
+          console.error('[Whisper worker] transcription error:', data.message)
           setStatus('error')
           revokeUrl()
           break
@@ -59,8 +64,6 @@ export function useWhisper() {
 
   const transcribe = useCallback((audioBlob) => {
     if (!workerRef.current) return
-    // Object URLs let the worker fetch the blob across the thread boundary.
-    // We keep a reference so we can clean it up once the worker is done.
     const url = URL.createObjectURL(audioBlob)
     objectUrlRef.current = url
     setTranscript('')

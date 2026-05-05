@@ -9,4 +9,13 @@ export default defineConfig({
     // causes resolution errors. Exclude it and let the browser handle it.
     exclude: ['@xenova/transformers'],
   },
+  server: {
+    // onnxruntime-web (used by @xenova/transformers) needs SharedArrayBuffer
+    // for WASM multi-threading. Browsers gate SharedArrayBuffer behind these
+    // two cross-origin isolation headers.
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
+  },
 })
