@@ -11,6 +11,11 @@ function getTranscriber() {
       'automatic-speech-recognition',
       'Xenova/whisper-tiny.en',
       {
+        // Force WASM backend. The Xenova/whisper-tiny.en model files were
+        // exported for the v2 WASM API. @huggingface/transformers@4.x defaults
+        // to WebGPU when available, but the WebGPU backend requires a different
+        // model format (quantized weight scales) that this model doesn't have.
+        device: 'wasm',
         // Optional progress callback for UI loading state
         progress_callback: (info) => {
           if (info.status === 'progress') {
