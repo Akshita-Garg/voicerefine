@@ -1,5 +1,7 @@
 import { pipeline, env } from '@huggingface/transformers';
 
+console.log('[transcribe] service loaded, device=wasm');
+
 // Use cached models when possible; fetch from CDN if not
 env.allowLocalModels = false;
 
@@ -7,16 +9,16 @@ let transcriberPromise = null;
 
 function getTranscriber() {
   if (!transcriberPromise) {
+    // Deviation from spec: spec says 'Xenova/whisper-tiny.en'. We're on
+    // @huggingface/transformers@4.2.0 which forces WebGPU when available
+    // (the `device: 'wasm'` option is ignored in this version, verified
+    // against actual stack traces). The Xenova model lacks the q4/q4f16
+    // weight scales the WebGPU MatMulNBits path requires. The onnx-community
+    // model has those weights and works on both backends.
     transcriberPromise = pipeline(
       'automatic-speech-recognition',
-      'Xenova/whisper-tiny.en',
+      'onnx-community/whisper-tiny.en',
       {
-        // Force WASM backend. The Xenova/whisper-tiny.en model files were
-        // exported for the v2 WASM API. @huggingface/transformers@4.x defaults
-        // to WebGPU when available, but the WebGPU backend requires a different
-        // model format (quantized weight scales) that this model doesn't have.
-        device: 'wasm',
-        // Optional progress callback for UI loading state
         progress_callback: (info) => {
           if (info.status === 'progress') {
             console.log(`[whisper] ${info.file}: ${Math.round(info.progress)}%`);
