@@ -1,28 +1,35 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { RecordButton } from './components/RecordButton'
-import { useWhisper } from './hooks/useWhisper'
+import { transcribe, preloadTranscriber } from './services/transcribe'
 
 function App() {
-  const { status: whisperStatus, transcript: whisperTranscript, loadProgress, transcribe } = useWhisper()
-
-  // rawTranscript is the user-editable version. Whisper populates it,
-  // but the user can fix names, jargon, or errors before running refinement.
   const [rawTranscript, setRawTranscript] = useState('')
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const [transcribeError, setTranscribeError] = useState(false)
 
-  // Sync Whisper output into the editable textarea whenever a new
-  // transcription completes. We use a separate state (not Whisper's internal
-  // transcript directly) so user edits don't fight with Whisper's value.
+  // Kick off model download as soon as the app loads so the user doesn't
+  // wait on their first recording. getTranscriber() is a singleton promise —
+  // calling it here and inside transcribe() both resolve to the same instance.
   useEffect(() => {
-    if (whisperTranscript) setRawTranscript(whisperTranscript)
-  }, [whisperTranscript])
+    preloadTranscriber()
+  }, [])
 
-  const handleAudioReady = (blob) => {
+  // useCallback keeps the reference stable across renders so RecordButton's
+  // useEffect doesn't re-fire with the same blob when App re-renders.
+  const handleAudioReady = useCallback(async (blob) => {
     setRawTranscript('')
-    transcribe(blob)
-  }
-
-  const isLoading = whisperStatus === 'loading'
-  const isProcessing = whisperStatus === 'processing'
+    setTranscribeError(false)
+    setIsTranscribing(true)
+    try {
+      const text = await transcribe(blob)
+      setRawTranscript(text)
+    } catch (err) {
+      console.error('[App] Transcription failed:', err)
+      setTranscribeError(true)
+    } finally {
+      setIsTranscribing(false)
+    }
+  }, [])
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -34,23 +41,13 @@ function App() {
         </div>
       </header>
 
-      {isLoading && (
-        <div className="mx-6 mt-4 bg-yellow-900/20 border border-yellow-700/40 text-yellow-300/90 text-sm px-4 py-3 rounded-lg">
-          <span className="font-medium">Loading Whisper model</span>
-          {loadProgress ? ` — ${loadProgress}%` : ''}
-          <span className="text-yellow-400/60 ml-2">
-            (~39 MB on first use, then cached in your browser)
-          </span>
-        </div>
-      )}
-
       <main className="flex flex-col items-center gap-8 py-12 px-6">
         <div className="flex flex-col items-center gap-3">
           <RecordButton onAudioReady={handleAudioReady} />
-          {isProcessing && (
+          {isTranscribing && (
             <p className="text-sm text-gray-400 animate-pulse">Transcribing...</p>
           )}
-          {whisperStatus === 'error' && (
+          {transcribeError && (
             <p className="text-sm text-red-400">
               Transcription failed — check the browser console for details.
             </p>

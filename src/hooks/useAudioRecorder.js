@@ -31,7 +31,8 @@ export function useAudioRecorder() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
 
-      const recorder = new MediaRecorder(stream)
+      const options = MediaRecorder.isTypeSupported('audio/webm') ? { mimeType: 'audio/webm' } : {}
+      const recorder = new MediaRecorder(stream, options)
       recorderRef.current = recorder
 
       recorder.ondataavailable = e => {
@@ -41,7 +42,7 @@ export function useAudioRecorder() {
       // onstop fires after stop() drains the final chunk — this is where the
       // usable audio blob is assembled from all collected chunks.
       recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
+        const blob = new Blob(chunksRef.current, { type: recorderRef.current.mimeType })
         setAudioBlob(blob)
         setState('idle')
       }
