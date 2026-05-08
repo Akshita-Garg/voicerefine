@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Zap, PenLine, Brain, Mic2 } from 'lucide-react'
 import { validateKey, validateOllama } from '../services/llm'
 
@@ -227,6 +227,9 @@ export function Onboarding({ onComplete }) {
   const [step, setStep]     = useState(1)
   const [intent, setIntent] = useState(null)
   const [fading, setFading] = useState(false)
+  const fadeTimerRef        = useRef(null)
+
+  useEffect(() => () => clearTimeout(fadeTimerRef.current), [])
 
   const handleStep1Continue = () => {
     localStorage.setItem('vr_intent', intent)
@@ -236,7 +239,7 @@ export function Onboarding({ onComplete }) {
   const handleStep2Complete = () => {
     localStorage.setItem('vr_onboarding_done', 'true')
     setFading(true)
-    setTimeout(onComplete, 500)
+    fadeTimerRef.current = setTimeout(onComplete, 500)
   }
 
   return (
