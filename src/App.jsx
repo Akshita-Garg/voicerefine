@@ -4,7 +4,7 @@ import { RecordButton } from './components/RecordButton'
 import { SettingsPanel } from './components/SettingsPanel'
 import { Onboarding } from './components/Onboarding'
 import { Tooltip } from './components/Tooltip'
-import { transcribe, preloadTranscriber } from './services/transcribe'
+import { transcribe } from './services/transcribe'
 import { composePrompt } from './utils/composePrompt'
 import { refine } from './services/llm'
 
@@ -47,7 +47,8 @@ function App() {
   const [intentOpen, setIntentOpen]     = useState(false)
   const intentRef                       = useRef(null)
 
-  useEffect(() => { preloadTranscriber() }, [])
+  // Model loads lazily on first Record click — do not preload on mount.
+  // Eager preload consumed ~2GB RAM immediately, slowing low-memory systems.
 
   useEffect(() => {
     if (!intentOpen) return
