@@ -53,6 +53,7 @@ export async function transcribe(blob) {
   // audio natively — no chunk_length_s/stride_length_s needed.
   const result = await transcriber(audio, {
     max_new_tokens: 1024,
+    language: 'en',
   });
   return result.text.trim();
 }
