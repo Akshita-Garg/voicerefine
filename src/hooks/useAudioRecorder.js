@@ -15,7 +15,7 @@ export function useAudioRecorder() {
 
   const stop = useCallback(() => {
     clearInterval(timerRef.current)
-    if (recorderRef.current?.state !== 'inactive') {
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') {
       recorderRef.current.stop()
     }
     streamRef.current?.getTracks().forEach(t => t.stop())
