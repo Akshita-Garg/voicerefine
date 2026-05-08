@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Mic, Square } from 'lucide-react'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 
 function formatTime(seconds) {
@@ -7,48 +8,70 @@ function formatTime(seconds) {
   return `${m}:${s}`
 }
 
-export function RecordButton({ onAudioReady }) {
+export function RecordButton({ onAudioReady, isProcessing, onRecordingChange }) {
   const { state, countdown, audioBlob, error, toggle } = useAudioRecorder()
 
-  // Pass the blob up to the parent (App) when a recording finishes.
-  // Step 5 (Whisper) will consume it there.
   useEffect(() => {
     if (audioBlob) onAudioReady?.(audioBlob)
   }, [audioBlob, onAudioReady])
 
+  useEffect(() => {
+    onRecordingChange?.(state === 'recording')
+  }, [state, onRecordingChange])
+
   const isRecording = state === 'recording'
+
+  const buttonStyle = isRecording
+    ? { background: '#7FAF8F', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }
+    : { background: '#E6CFC7', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }
+
+  const buttonClass = isRecording
+    ? 'ring-4 ring-[#7FAF8F]/35'
+    : isProcessing
+      ? 'border-2 border-[rgba(58,47,42,0.08)]'
+      : 'border-2 border-[rgba(58,47,42,0.08)] hover:scale-105'
+
+  const iconColor = isRecording ? '#F4F7F5' : '#8A766E'
 
   return (
     <div className="flex flex-col items-center gap-3">
       <button
         onClick={toggle}
+        disabled={isProcessing}
+        style={buttonStyle}
         className={`
-          relative w-20 h-20 rounded-full text-3xl
+          relative w-20 h-20 rounded-full
           flex items-center justify-center transition-all duration-200
-          ${isRecording
-            ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-900/50'
-            : 'bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700'
-          }
+          ${buttonClass}
         `}
         aria-label={isRecording ? 'Stop recording' : 'Start recording'}
       >
-        {isRecording ? '⏹' : '🎙'}
+        <span className={isProcessing ? 'animate-spin-slow' : ''}>
+          {isRecording
+            ? <Square size={28} strokeWidth={1.75} color={iconColor} fill={iconColor} />
+            : <Mic size={28} strokeWidth={1.75} color={iconColor} />
+          }
+        </span>
         {isRecording && (
-          <span className="absolute inset-0 rounded-full animate-ping bg-red-600 opacity-30" />
+          <span className="absolute inset-0 rounded-full animate-ping bg-[#7FAF8F] opacity-20" />
         )}
       </button>
 
-      <div className="text-sm text-gray-400 h-5 tabular-nums">
-        {isRecording ? `${formatTime(countdown)} / 01:30` : 'Click to record'}
+      <div className="text-[13px] text-[#8A766E] h-5 tabular-nums">
+        {isProcessing
+          ? 'Transcribing...'
+          : isRecording
+            ? `${formatTime(countdown)} / 03:00`
+            : 'Click to record'}
       </div>
 
       {error === 'permission_denied' && (
-        <p className="text-red-400 text-sm text-center max-w-xs">
+        <p className="text-red-700 text-sm text-center max-w-xs">
           Microphone access denied. Allow microphone access in your browser settings and reload.
         </p>
       )}
       {error === 'unavailable' && (
-        <p className="text-red-400 text-sm text-center max-w-xs">
+        <p className="text-red-700 text-sm text-center max-w-xs">
           Could not access your microphone. Make sure it is connected and try again.
         </p>
       )}

@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 
-const MAX_SECONDS = 90
+const MAX_SECONDS = 180
 
 export function useAudioRecorder() {
   const [state, setState] = useState('idle') // 'idle' | 'recording'
@@ -25,7 +25,6 @@ export function useAudioRecorder() {
     setError(null)
     setAudioBlob(null)
     chunksRef.current = []
-    setCountdown(MAX_SECONDS)
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -48,6 +47,9 @@ export function useAudioRecorder() {
       }
 
       recorder.start()
+      // Reset countdown in the same synchronous block as setState('recording') so
+      // they batch into one render — prevents a stale timer value flashing on screen.
+      setCountdown(MAX_SECONDS)
       setState('recording')
 
       let secondsLeft = MAX_SECONDS
