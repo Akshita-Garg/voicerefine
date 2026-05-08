@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 
 const MAX_SECONDS = 180
 
@@ -69,6 +69,9 @@ export function useAudioRecorder() {
     if (state === 'recording') stop()
     else if (state === 'idle') start()
   }, [state, start, stop])
+
+  // Stop recording and release mic/interval if the component unmounts mid-recording.
+  useEffect(() => () => stop(), [stop])
 
   return { state, countdown, audioBlob, error, toggle }
 }
