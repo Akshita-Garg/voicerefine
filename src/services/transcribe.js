@@ -8,8 +8,6 @@ const HQ_MODEL_ID     = 'onnx-community/cohere-transcribe-03-2026-ONNX';
 const INFERENCE_PARAMS = {
   [DEFAULT_MODEL_ID]: {
     max_new_tokens: 256,
-    language: 'en',
-    task: 'transcribe',
     chunk_length_s: 30,
     stride_length_s: 5,
   },
