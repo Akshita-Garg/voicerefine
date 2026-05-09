@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Zap, PenLine, Brain, Mic2 } from 'lucide-react'
 import { validateKey } from '../services/llm'
+import { resetTranscriber, preloadTranscriber, isTranscriberLoading } from '../services/transcribe'
 import { Tooltip } from './Tooltip'
 
 const PROVIDER_OPTIONS = [
@@ -8,6 +9,7 @@ const PROVIDER_OPTIONS = [
   { value: 'openai', label: 'OpenAI',       needsKey: true  },
   { value: 'ollama', label: 'Local Ollama', needsKey: false },
 ]
+
 
 const INTENT_OPTIONS = [
   { value: 'quick_capture',     Icon: Zap,     label: 'Quick capture',  description: "You want a quick clean-up of something you dictated" },
@@ -17,9 +19,11 @@ const INTENT_OPTIONS = [
 ]
 
 export function SettingsPanel({ open, onClose, onSaved }) {
-  const [provider, setProvider] = useState('ollama')
-  const [apiKey, setApiKey]     = useState('')
-  const [intent, setIntent]     = useState('take_notes')
+  const [provider, setProvider]                     = useState('ollama')
+  const [apiKey, setApiKey]                         = useState('')
+  const [intent, setIntent]                         = useState('take_notes')
+  const [useHqTranscription, setUseHqTranscription] = useState(false)
+  const [modelLoading, setModelLoading]             = useState(false)
 
   // 'idle' | 'validating' | 'valid' | 'rate_limited' | 'invalid'
   const [keyStatus, setKeyStatus] = useState('idle')
@@ -31,6 +35,8 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     setProvider(localStorage.getItem('vr_provider') ?? 'ollama')
     setApiKey(localStorage.getItem('vr_api_key')   ?? '')
     setIntent(localStorage.getItem('vr_intent')    ?? 'take_notes')
+    setUseHqTranscription(localStorage.getItem('voicerefine.useHighQualityTranscription') === 'true')
+    setModelLoading(isTranscriberLoading())
     setKeyStatus('idle')
     setKeyError('')
     setOverride(false)
@@ -66,6 +72,19 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     keyStatus === 'valid' ||
     keyStatus === 'rate_limited' ||
     override
+
+  const handleHqToggle = async (e) => {
+    const enabled = e.target.checked
+    setUseHqTranscription(enabled)
+    localStorage.setItem('voicerefine.useHighQualityTranscription', String(enabled))
+    resetTranscriber()
+    setModelLoading(true)
+    try {
+      await preloadTranscriber()
+    } finally {
+      setModelLoading(false)
+    }
+  }
 
   const handleSave = () => {
     localStorage.setItem('vr_provider', provider)
@@ -173,6 +192,27 @@ export function SettingsPanel({ open, onClose, onSaved }) {
               </p>
             </section>
           )}
+
+          {/* Transcription */}
+          <section>
+            <h3 className="text-xs font-medium text-[#6B5B52] uppercase tracking-[0.08em] mb-3">Transcription</h3>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useHqTranscription}
+                onChange={handleHqToggle}
+                disabled={modelLoading}
+                className="accent-[#7FAF8F] mt-0.5 flex-shrink-0"
+              />
+              <span className="flex flex-col gap-1">
+                <span className="text-sm text-[#3A2F2A]">Use higher-quality transcription</span>
+                {modelLoading
+                  ? <span className="text-xs text-[#8A766E]">Downloading model…</span>
+                  : <span className="text-xs text-[#8A766E]">Slower and requires a larger one-time download (~1 GB), but transcribes proper nouns and technical terms more accurately. Recommended for newer hardware.</span>
+                }
+              </span>
+            </label>
+          </section>
 
           {/* Intent */}
           <section>
