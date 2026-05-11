@@ -2,28 +2,26 @@ import { useState, useEffect } from 'react'
 import { Zap, PenLine, Brain, Mic2 } from 'lucide-react'
 import { validateKey } from '../services/llm'
 import { resetTranscriber, preloadTranscriber, isTranscriberLoading } from '../services/transcribe'
-import { preloadRefiner } from '../services/refine'
 import { Tooltip } from './Tooltip'
 
 const PROVIDER_OPTIONS = [
-  { value: 'browser', label: 'In-browser model', needsKey: false, description: 'Runs entirely on your device. No API key, no setup needed. Requires a one-time download (~1.2 GB) and works best on hardware from the last few years. If you have an older laptop, choose Gemini or OpenAI instead.' },
-  { value: 'gemini',  label: 'Cloud (Gemini)',    needsKey: true,  description: 'Faster and higher quality. Free API key from Google AI Studio.' },
-  { value: 'openai',  label: 'Cloud (OpenAI)',    needsKey: true,  description: 'Higher quality. Requires an OpenAI API key (paid).' },
-  { value: 'ollama',  label: 'Local Ollama',      needsKey: false, description: 'Free, runs on your machine. Requires running the app at localhost.' },
+  { value: 'gemini', label: 'Cloud (Gemini)',                     needsKey: true,  description: 'Free API key from Google AI Studio (aistudio.google.com).' },
+  { value: 'openai', label: 'Cloud (OpenAI)',                     needsKey: true,  description: 'Requires an OpenAI API key (paid).' },
+  { value: 'ollama', label: 'Local Ollama',                       needsKey: false, description: 'Free, runs on your machine. Requires running the app at localhost.' },
+  { value: 'none',   label: 'Skip refinement (transcripts only)', needsKey: false, description: 'No setup needed. You get transcripts but not refined output.' },
 ]
 
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
 
-
 const INTENT_OPTIONS = [
-  { value: 'quick_capture',     Icon: Zap,     label: 'Quick capture',  description: "You want a quick clean-up of something you dictated" },
-  { value: 'take_notes',        Icon: PenLine, label: 'Take notes',     description: "You're capturing information you'll read back later" },
-  { value: 'think_out_loud',    Icon: Brain,   label: 'Think out loud', description: "You're exploring an idea or working through a decision" },
-  { value: 'practice_rehearse', Icon: Mic2,    label: 'Rehearse',       description: "You're rehearsing a pitch, answer, or presentation" },
+  { value: 'quick_capture',     Icon: Zap,     label: 'Quick capture',      description: "Tidy up a dictated thought without rewriting it. Best for memos and quick observations." },
+  { value: 'take_notes',        Icon: PenLine, label: 'Take notes',          description: "Extract information you'll re-read later. Best for capturing lectures, articles, or research." },
+  { value: 'think_out_loud',    Icon: Brain,   label: 'Think out loud',      description: "Preserve the rhythm of your thinking, including hedges and tangents. Best for working through ideas or decisions." },
+  { value: 'practice_rehearse', Icon: Mic2,    label: 'Practice & rehearse', description: "Polish a rehearsal into a clean, deliverable version. Best for interview prep, presentations, or pitches." },
 ]
 
 export function SettingsPanel({ open, onClose, onSaved }) {
-  const [provider, setProvider]                     = useState('ollama')
+  const [provider, setProvider]                     = useState('none')
   const [apiKey, setApiKey]                         = useState('')
   const [intent, setIntent]                         = useState('take_notes')
   const [useHqTranscription, setUseHqTranscription] = useState(false)
@@ -37,7 +35,8 @@ export function SettingsPanel({ open, onClose, onSaved }) {
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!open) return
-    setProvider(localStorage.getItem('vr_provider') ?? 'browser')
+    const stored = localStorage.getItem('vr_provider') ?? 'none'
+    setProvider(stored === 'browser' ? 'none' : stored)
     setApiKey(localStorage.getItem('vr_api_key')   ?? '')
     setIntent(localStorage.getItem('vr_intent')    ?? 'take_notes')
     setUseHqTranscription(localStorage.getItem('voicerefine.useHighQualityTranscription') === 'true')
@@ -55,7 +54,6 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     setKeyStatus('idle')
     setKeyError('')
     setOverride(false)
-    if (val === 'browser') preloadRefiner()
   }
 
   const handleValidate = async () => {
@@ -75,7 +73,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
   }
 
   const canSave =
-    provider === 'browser' ||
+    provider === 'none' ||
     provider === 'ollama' ||
     keyStatus === 'valid' ||
     keyStatus === 'rate_limited' ||
@@ -158,7 +156,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
             </div>
           </section>
 
-          {/* API Key — hidden for Ollama */}
+          {/* API Key — hidden for key-free providers */}
           {needsKey && (
             <section>
               <h3 className="text-xs font-medium text-[#6B5B52] uppercase tracking-[0.08em] mb-3">API Key</h3>
@@ -203,7 +201,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
               )}
 
               <p className="mt-3 text-xs text-[#8A766E]">
-                🔒 Your key is stored only in your browser and never sent to any server we own.
+                Your key is stored only in your browser and never sent to any server we own.
               </p>
             </section>
           )}

@@ -25,6 +25,7 @@ function currentModelId() {
 
 let transcriberPromise = null;
 let transcriberReady   = false;
+let progressHandler    = null;
 
 function getTranscriber() {
   if (!transcriberPromise) {
@@ -36,8 +37,8 @@ function getTranscriber() {
         dtype: 'q4',
         device: 'webgpu',
         progress_callback: (info) => {
-          if (info.status === 'progress') {
-            console.log(`[transcribe] ${info.file}: ${Math.round(info.progress)}%`);
+          if (info.status === 'progress' && progressHandler) {
+            progressHandler({ file: info.file, loaded: info.loaded ?? 0, total: info.total ?? 0 });
           }
         },
       }
@@ -65,9 +66,11 @@ export async function transcribe(blob) {
 export function resetTranscriber() {
   transcriberPromise = null;
   transcriberReady   = false;
+  progressHandler    = null;
 }
 
-export function preloadTranscriber() {
+export function preloadTranscriber(onProgress) {
+  if (onProgress) progressHandler = onProgress;
   return getTranscriber();
 }
 

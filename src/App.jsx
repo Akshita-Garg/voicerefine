@@ -4,22 +4,21 @@ import { RecordButton } from './components/RecordButton'
 import { SettingsPanel } from './components/SettingsPanel'
 import { Onboarding } from './components/Onboarding'
 import { Tooltip } from './components/Tooltip'
-import { transcribe } from './services/transcribe'
+import { transcribe, preloadTranscriber } from './services/transcribe'
 import { composePrompt } from './utils/composePrompt'
 import { refine } from './services/llm'
-import { preloadRefiner } from './services/refine'
 
 const MODES = [
-  { value: 'light',    Icon: Wand2,    label: 'Light',    description: 'Clean up grammar and remove fillers, preserving your natural flow' },
-  { value: 'bullets',  Icon: List,     label: 'Bullets',  description: 'Pull out the key points as a tight bulleted list' },
-  { value: 'document', Icon: FileText, label: 'Document', description: 'Restructure into sections with headers and paragraphs' },
+  { value: 'light',    Icon: Wand2,    label: 'Light',    description: 'Clean prose. Preserves the flow of what you said.' },
+  { value: 'bullets',  Icon: List,     label: 'Bullets',  description: 'Key ideas as a bulleted list.' },
+  { value: 'document', Icon: FileText, label: 'Document', description: 'Restructured into sections with brief headers.' },
 ]
 
 const INTENT_LABELS = {
-  quick_capture:     { Icon: Zap,    label: 'Quick capture',  description: "You want a quick clean-up of something you dictated" },
-  take_notes:        { Icon: PenLine, label: 'Take notes',    description: "You're capturing information you'll read back later" },
-  think_out_loud:    { Icon: Brain,  label: 'Think out loud', description: "You're exploring an idea or working through a decision" },
-  practice_rehearse: { Icon: Mic2,   label: 'Rehearse',       description: "You're rehearsing a pitch, answer, or presentation" },
+  quick_capture:     { Icon: Zap,     label: 'Quick capture',      description: "Tidy up a dictated thought without rewriting it. Best for memos and quick observations." },
+  take_notes:        { Icon: PenLine, label: 'Take notes',          description: "Extract information you'll re-read later. Best for capturing lectures, articles, or research." },
+  think_out_loud:    { Icon: Brain,   label: 'Think out loud',      description: "Preserve the rhythm of your thinking, including hedges and tangents. Best for working through ideas or decisions." },
+  practice_rehearse: { Icon: Mic2,    label: 'Practice & rehearse', description: "Polish a rehearsal into a clean, deliverable version. Best for interview prep, presentations, or pitches." },
 }
 
 function readIntent() {
@@ -27,7 +26,8 @@ function readIntent() {
 }
 
 function readProvider() {
-  return localStorage.getItem('vr_provider') ?? 'browser'
+  const stored = localStorage.getItem('vr_provider') ?? 'none'
+  return stored === 'browser' ? 'none' : stored
 }
 
 function readOnboardingDone() {
@@ -50,10 +50,12 @@ function App() {
   const [rawCopied, setRawCopied]         = useState(false)
   const [refinedCopied, setRefinedCopied] = useState(false)
 
-  const [provider, setProvider]               = useState(readProvider)
-  const [refinerModelReady, setRefinerModelReady] = useState(false)
-  const [refinerProgress, setRefinerProgress] = useState(null)
-  const [bannerDismissed, setBannerDismissed] = useState(false)
+  const [provider, setProvider]       = useState(readProvider)
+  const [tipDismissed, setTipDismissed] = useState(false)
+
+  const [transcribeModelReady, setTranscribeModelReady] = useState(false)
+  const [transcribeProgress, setTranscribeProgress]     = useState(null) // 0-100 or null
+  const transcribeFilesRef = useRef({})
 
   const copyText = async (text, setCopied) => {
     try {
@@ -70,24 +72,17 @@ function App() {
   const [intentOpen, setIntentOpen]     = useState(false)
   const intentRef                       = useRef(null)
 
-  // Transcription model loads lazily on first Record click — do not preload on mount.
-  // Eager preload consumed ~2GB RAM immediately, slowing low-memory systems.
-
   useEffect(() => {
-    if (provider !== 'browser') return
-    preloadRefiner((info) => setRefinerProgress(info))
-      .then(() => { setRefinerModelReady(true); setRefinerProgress(null) })
+    preloadTranscriber((info) => {
+      transcribeFilesRef.current[info.file] = { loaded: info.loaded, total: info.total }
+      const files      = Object.values(transcribeFilesRef.current)
+      const totalBytes = files.reduce((s, f) => s + f.total, 0)
+      const loadedBytes = files.reduce((s, f) => s + f.loaded, 0)
+      setTranscribeProgress(totalBytes > 0 ? Math.round((loadedBytes / totalBytes) * 100) : null)
+    })
+      .then(() => { setTranscribeModelReady(true); setTranscribeProgress(null) })
       .catch(() => {})
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!intentOpen) return
-    const handler = (e) => {
-      if (!intentRef.current?.contains(e.target)) setIntentOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [intentOpen])
+  }, [])
 
   const handleAudioReady = useCallback(async (blob) => {
     setTranscribeError(false)
@@ -122,13 +117,7 @@ function App() {
 
   const handleSettingsSaved = () => {
     setIntent(readIntent())
-    const newProvider = readProvider()
-    setProvider(newProvider)
-    if (newProvider === 'browser' && !refinerModelReady) {
-      preloadRefiner((info) => setRefinerProgress(info))
-        .then(() => { setRefinerModelReady(true); setRefinerProgress(null) })
-        .catch(() => {})
-    }
+    setProvider(readProvider())
   }
 
   const handleIntentChange = (val) => {
@@ -138,6 +127,7 @@ function App() {
 
   const currentMode = MODES.find(m => m.value === mode)
   const CurrentModeIcon = currentMode?.Icon
+  const refinementEnabled = provider !== 'none'
 
   return (
     <div
@@ -162,54 +152,82 @@ function App() {
 
       <main className="flex flex-col items-center gap-8 py-12 px-6">
 
-        {/* In-browser model loading banner */}
-        {provider === 'browser' && !refinerModelReady && !bannerDismissed && (
+        {/* Tip banner */}
+        {!tipDismissed && (
+          <div
+            className="w-full max-w-5xl rounded-2xl border border-[#7FAF8F]/25 px-5 py-3"
+            style={{ background: 'rgba(127,175,143,0.07)', boxShadow: '0 1px 3px rgba(58,47,42,0.05)' }}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm text-[#4A7A5E]">Tip: You can switch transcription or refinement options any time in Settings.</span>
+              <button
+                onClick={() => setTipDismissed(true)}
+                className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors leading-none flex-shrink-0"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Transcription model download banner */}
+        {!transcribeModelReady && (
           <div
             className="w-full max-w-5xl rounded-2xl border border-[#7FAF8F]/25 px-5 py-4"
             style={{ background: 'rgba(127,175,143,0.07)', boxShadow: '0 1px 3px rgba(58,47,42,0.05)' }}
           >
             <div className="flex items-center justify-between gap-4 mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#7FAF8F] animate-pulse" />
-                <span className="text-sm font-medium text-[#4A7A5E]">Downloading in-browser model</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-[#7FAF8F] animate-pulse flex-shrink-0" />
+                <span className="text-sm font-medium text-[#4A7A5E]">Downloading transcription model</span>
               </div>
-              <button
-                onClick={() => setBannerDismissed(true)}
-                className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors leading-none"
-              >
-                Dismiss
-              </button>
+              {transcribeProgress !== null && (
+                <span className="text-sm tabular-nums text-[#4A7A5E] font-medium">{transcribeProgress}%</span>
+              )}
             </div>
             <div className="w-full h-1 rounded-full bg-[rgba(127,175,143,0.2)] overflow-hidden">
               <div
                 className="h-full rounded-full bg-[#7FAF8F] transition-all duration-500"
-                style={{ width: `${refinerProgress?.progress ?? 0}%` }}
+                style={{ width: `${transcribeProgress ?? 0}%` }}
               />
             </div>
-            {refinerProgress && (
-              <p className="mt-2 text-xs text-[#8A766E]">{refinerProgress.progress}% — one-time download, ~1.2 GB</p>
-            )}
+            <p className="mt-2 text-xs text-[#8A766E]">
+              This may take a moment. Recording will be available once the download is complete.
+            </p>
           </div>
         )}
 
         {/* Mic + Refine */}
         <div className="flex flex-col items-center gap-3">
-          <RecordButton onAudioReady={handleAudioReady} isProcessing={isTranscribing} onRecordingChange={setIsRecording} />
+          <RecordButton onAudioReady={handleAudioReady} isProcessing={isTranscribing} onRecordingChange={setIsRecording} disabled={!transcribeModelReady} />
           {transcribeError && (
             <p className="text-sm text-red-700">
               Transcription failed. Check the browser console for details.
             </p>
           )}
-          <button
-            onClick={handleRefine}
-            disabled={!rawTranscript.trim() || isRefining || isRecording || isTranscribing}
-            className="flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-medium transition-colors duration-150
-              bg-[#7FAF8F] hover:bg-[#6E9E7F] text-[#F4F7F5]
-              disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {CurrentModeIcon && <CurrentModeIcon size={14} strokeWidth={1.75} color="#F4F7F5" />}
-            {isRefining ? 'Refining…' : `Refine as ${currentMode?.label}`}
-          </button>
+          {refinementEnabled ? (
+            <button
+              onClick={handleRefine}
+              disabled={!rawTranscript.trim() || isRefining || isRecording || isTranscribing}
+              className="flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-medium transition-colors duration-150
+                bg-[#7FAF8F] hover:bg-[#6E9E7F] text-[#F4F7F5]
+                disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {CurrentModeIcon && <CurrentModeIcon size={14} strokeWidth={1.75} color="#F4F7F5" />}
+              {isRefining ? 'Refining…' : `Refine as ${currentMode?.label}`}
+            </button>
+          ) : (
+            <p className="text-sm text-[#8A766E] text-center">
+              Refinement disabled.{' '}
+              <button
+                onClick={() => setSettingsOpen(true)}
+                className="underline hover:text-[#3A2F2A] transition-colors"
+              >
+                Switch to a provider in Settings
+              </button>{' '}
+              to enable refinement.
+            </p>
+          )}
         </div>
 
         {/* Intent | Cards | Mode */}
@@ -307,14 +325,14 @@ function App() {
             </div>
 
             <div
-              className="rounded-xl p-5 border border-[rgba(58,47,42,0.08)]"
+              className={`rounded-xl p-5 border border-[rgba(58,47,42,0.08)] transition-opacity duration-200 ${!refinementEnabled ? 'opacity-40 pointer-events-none select-none' : ''}`}
               style={{ background: '#E6CFC7', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
             >
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-xs font-semibold text-[#6B5B52] uppercase tracking-[0.08em]">
                   Refined Output
                 </h2>
-                {refinedOutput && (
+                {refinedOutput && refinementEnabled && (
                   <button
                     onClick={() => copyText(refinedOutput, setRefinedCopied)}
                     className="text-[#8A766E] hover:text-[#3A2F2A] transition-colors"
@@ -325,7 +343,9 @@ function App() {
                 )}
               </div>
               <div className="h-52 overflow-y-auto">
-                {refineError ? (
+                {!refinementEnabled ? (
+                  <p className="text-[#6B5B52] text-sm">No refinement provider selected.</p>
+                ) : refineError ? (
                   <p className="text-red-700 text-sm">{refineError}</p>
                 ) : refinedOutput ? (
                   <p className="text-[#3A2F2A] text-sm whitespace-pre-wrap">{refinedOutput}</p>
@@ -338,34 +358,36 @@ function App() {
             </div>
           </div>
 
-          {/* Mode */}
-          <div className="w-36 flex-shrink-0 pt-1">
-            <p className="text-xs font-semibold text-[#6B5B52] uppercase tracking-[0.08em] mb-2">Mode</p>
-            <div className="flex flex-col gap-2">
-              {MODES.map(({ value, Icon: ModeIcon, label, description }) => {
-                const active = mode === value
-                return (
-                  <Tooltip key={value} text={description} align="right">
-                    <button
-                      onClick={() => setMode(value)}
-                      className={`w-full px-3 py-2 rounded-[10px] text-sm text-left flex items-center gap-2 transition-colors duration-150 ${
-                        active
-                          ? 'bg-[rgba(127,175,143,0.12)] border border-[#7FAF8F]/40 text-[#3A2F2A] font-medium'
-                          : 'bg-transparent border border-[rgba(58,47,42,0.08)] text-[#6B5B52] font-medium hover:bg-[rgba(58,47,42,0.05)] hover:text-[#3A2F2A]'
-                      }`}
-                    >
-                      <ModeIcon
-                        size={14}
-                        strokeWidth={1.75}
-                        color={active ? '#6FA287' : '#5C4B44'}
-                      />
-                      {label}
-                    </button>
-                  </Tooltip>
-                )
-              })}
+          {/* Mode — hidden when refinement is disabled */}
+          {refinementEnabled && (
+            <div className="w-36 flex-shrink-0 pt-1">
+              <p className="text-xs font-semibold text-[#6B5B52] uppercase tracking-[0.08em] mb-2">Mode</p>
+              <div className="flex flex-col gap-2">
+                {MODES.map(({ value, Icon: ModeIcon, label, description }) => {
+                  const active = mode === value
+                  return (
+                    <Tooltip key={value} text={description} align="right">
+                      <button
+                        onClick={() => setMode(value)}
+                        className={`w-full px-3 py-2 rounded-[10px] text-sm text-left flex items-center gap-2 transition-colors duration-150 ${
+                          active
+                            ? 'bg-[rgba(127,175,143,0.12)] border border-[#7FAF8F]/40 text-[#3A2F2A] font-medium'
+                            : 'bg-transparent border border-[rgba(58,47,42,0.08)] text-[#6B5B52] font-medium hover:bg-[rgba(58,47,42,0.05)] hover:text-[#3A2F2A]'
+                        }`}
+                      >
+                        <ModeIcon
+                          size={14}
+                          strokeWidth={1.75}
+                          color={active ? '#6FA287' : '#5C4B44'}
+                        />
+                        {label}
+                      </button>
+                    </Tooltip>
+                  )
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
         </div>
       </main>
@@ -377,7 +399,7 @@ function App() {
       />
 
       {!onboardingDone && (
-        <Onboarding onComplete={() => { setOnboardingDone(true); setIntent(readIntent()) }} />
+        <Onboarding onComplete={() => { setOnboardingDone(true); setIntent(readIntent()); setProvider(readProvider()) }} />
       )}
     </div>
   )

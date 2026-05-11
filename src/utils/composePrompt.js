@@ -1,21 +1,21 @@
 export const INTENT_BLOCKS = {
   quick_capture:
-    'The user is dictating something they want quickly cleaned up. Keep their casual register and meaning. Light touch: fix grammar, remove fillers, do not restructure unless the format requires it. Use a casual, conversational register that matches the speaker\'s voice.',
+    'The speaker is dictating a short thought, memo, or observation to themselves. They want their thought back, lightly tidied — not rewritten. Preserve their phrasing, their casual register, and the order in which they said things. Remove only obvious speech artifacts: fillers, false starts, repetitions. Do not group ideas, do not reorder, do not summarize, do not expand. The speaker chose their words; keep them.',
   take_notes:
-    'The user is capturing information they want to read back later, such as class notes, research notes, or learning material. Prioritize clarity and information density. Group related ideas. It is okay to lightly restructure for readability. Use a neutral, information-focused register. Trim conversational filler.',
+    'The speaker is recording information they will re-read later to retrieve specific facts, names, claims, or concepts. Their voice does not need to be preserved; the information does. Keep proper nouns, numbers, technical terms, and specific claims verbatim. Trim conversational language and rhetorical filler aggressively. Light grouping of related ideas is welcome where it aids findability. Do not preserve casual asides, hedges, or speaker personality.',
   think_out_loud:
-    'The user is thinking through something aloud, exploring an idea or working through a decision. Preserve their exploratory voice. Do not over-polish or strip uncertainty markers if they signal real thinking. Add gentle structure only where it helps. Use a casual register that preserves the speaker\'s exploratory voice and any tentative phrasing that signals real thinking.',
+    'The speaker is reasoning through something in real time — exploring an idea, working a decision, or brainstorming. The value is the reasoning itself, including its uncertainty, not just the conclusion. Preserve hedges ("I think", "maybe", "not sure but", "on the other hand"), false starts that resolve into a point, and the rhythm of working a problem. Do not collapse tentative phrasing into confident statements. Do not impose structure the speaker did not have. Do not skip to the conclusion.',
   practice_rehearse:
-    'The user is rehearsing a spoken response such as an interview answer, presentation, or pitch. Make the output coherent, well-structured, and confident. Smooth transitions between ideas. Aim for something the user could practice from. Use a polished, confident register suitable for spoken delivery to an audience.',
+    'The speaker is rehearsing something they will deliver to an audience: an interview answer, a presentation, a pitch, or a difficult message. The output is the polished version they would actually deliver, not a transcript of their rehearsal. Sharpen phrasing, smooth transitions between ideas, and project confidence. Cut hesitations, restarts, and self-corrections — those are rehearsal artifacts, not content. The speaker should be able to read or speak the output as-is to their intended audience.',
 }
 
 export const MODE_BLOCKS = {
   light:
-    'Output a clean readable version of what the speaker said. Remove fillers and false starts. Fix grammar. Preserve sentence flow and structure.',
+    'Output a single block of flowing prose. Use paragraph breaks where the topic shifts naturally. Do not use headers, bullets, lists, bold, italic, or any markdown structure. The output reads continuously, end to end, like a paragraph from a book.',
   bullets:
-    'Extract the key points as a concise bulleted list. Each bullet captures one distinct idea. Order bullets by importance or natural flow.',
+    'Output a bulleted list. One distinct idea per bullet. Each bullet should read on its own without context from neighbors. Nest sub-bullets only when one idea genuinely depends on another (use sparingly). Do not include paragraphs of prose above or below the list. Do not add section headers. Order bullets by importance first, then by the speaker\'s natural flow.',
   document:
-    'Restructure into a written document with logical sections. Add brief section headers if the content has natural breaks. Write in flowing paragraphs within sections. Do not add content — only restructure what is already in the transcript.',
+    'Output a structured document. Identify natural topic shifts in the transcript and place a brief section header (one line, plain text, no markdown formatting characters) before each. Within sections, write flowing paragraphs. A reader should be able to scan headers to navigate or read the document linearly. If the content is too short to justify multiple sections, output a single short paragraph without a header.',
 }
 
 /**
@@ -37,9 +37,10 @@ About the input:
 - Treat these as artifacts of speech, not meaningful content
 
 Universal rules:
-- Preserve the speaker's meaning and voice
-- Do not elaborate, infer, or explain. If the speaker did not say it, it does not appear in the output.
-- The output word length should be roughly the same as the input word length.
+- Preserve the speaker's meaning. The intent block below tells you how much of their voice to preserve.
+- Do not add information, opinions, examples, or claims the speaker did not say.
+- Use the speaker's own terms and phrases verbatim where possible. Do not paraphrase technical terms, proper nouns, or named concepts.
+- Match the information content of the transcript. Length may vary slightly by format (bullets compress; documents may add header lines).
 
 User context:
 ${INTENT_BLOCKS[intent]}

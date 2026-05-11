@@ -8,7 +8,7 @@ function formatTime(seconds) {
   return `${m}:${s}`
 }
 
-export function RecordButton({ onAudioReady, isProcessing, onRecordingChange }) {
+export function RecordButton({ onAudioReady, isProcessing, onRecordingChange, disabled }) {
   const { state, countdown, audioBlob, error, toggle } = useAudioRecorder()
 
   useEffect(() => {
@@ -20,6 +20,7 @@ export function RecordButton({ onAudioReady, isProcessing, onRecordingChange }) 
   }, [state, onRecordingChange])
 
   const isRecording = state === 'recording'
+  const isBlocked   = disabled || isProcessing
 
   const buttonStyle = isRecording
     ? { background: '#7FAF8F', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }
@@ -27,8 +28,8 @@ export function RecordButton({ onAudioReady, isProcessing, onRecordingChange }) 
 
   const buttonClass = isRecording
     ? 'ring-4 ring-[#7FAF8F]/35'
-    : isProcessing
-      ? 'border-2 border-[rgba(58,47,42,0.08)]'
+    : isBlocked
+      ? 'border-2 border-[rgba(58,47,42,0.08)] opacity-40 cursor-not-allowed'
       : 'border-2 border-[rgba(58,47,42,0.08)] hover:scale-105'
 
   const iconColor = isRecording ? '#F4F7F5' : '#8A766E'
@@ -37,7 +38,7 @@ export function RecordButton({ onAudioReady, isProcessing, onRecordingChange }) 
     <div className="flex flex-col items-center gap-3">
       <button
         onClick={toggle}
-        disabled={isProcessing}
+        disabled={isBlocked}
         style={buttonStyle}
         className={`
           relative w-20 h-20 rounded-full
