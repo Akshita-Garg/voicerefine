@@ -73,16 +73,17 @@ function App() {
   const intentRef                       = useRef(null)
 
   useEffect(() => {
+    if (!onboardingDone) return
     preloadTranscriber((info) => {
       transcribeFilesRef.current[info.file] = { loaded: info.loaded, total: info.total }
-      const files      = Object.values(transcribeFilesRef.current)
-      const totalBytes = files.reduce((s, f) => s + f.total, 0)
+      const files       = Object.values(transcribeFilesRef.current)
+      const totalBytes  = files.reduce((s, f) => s + f.total, 0)
       const loadedBytes = files.reduce((s, f) => s + f.loaded, 0)
       setTranscribeProgress(totalBytes > 0 ? Math.round((loadedBytes / totalBytes) * 100) : null)
     })
       .then(() => { setTranscribeModelReady(true); setTranscribeProgress(null) })
       .catch(() => {})
-  }, [])
+  }, [onboardingDone])
 
   const handleAudioReady = useCallback(async (blob) => {
     setTranscribeError(false)
@@ -159,7 +160,7 @@ function App() {
             style={{ background: 'rgba(127,175,143,0.07)', boxShadow: '0 1px 3px rgba(58,47,42,0.05)' }}
           >
             <div className="flex items-center justify-between gap-4">
-              <span className="text-sm text-[#4A7A5E]">Tip: You can switch transcription or refinement options any time in Settings.</span>
+              <span className="text-sm text-[#4A7A5E]">Tip: You can change your transcription model or refinement provider any time in Settings.</span>
               <button
                 onClick={() => setTipDismissed(true)}
                 className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors leading-none flex-shrink-0"
@@ -192,7 +193,7 @@ function App() {
               />
             </div>
             <p className="mt-2 text-xs text-[#8A766E]">
-              This may take a moment. Recording will be available once the download is complete.
+              This may take a moment — one-time download, won't happen again on future visits.
             </p>
           </div>
         )}

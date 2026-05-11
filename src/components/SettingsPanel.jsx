@@ -21,11 +21,11 @@ const INTENT_OPTIONS = [
 ]
 
 export function SettingsPanel({ open, onClose, onSaved }) {
-  const [provider, setProvider]                     = useState('none')
-  const [apiKey, setApiKey]                         = useState('')
-  const [intent, setIntent]                         = useState('take_notes')
-  const [useHqTranscription, setUseHqTranscription] = useState(false)
-  const [modelLoading, setModelLoading]             = useState(false)
+  const [provider, setProvider]               = useState('none')
+  const [apiKey, setApiKey]                   = useState('')
+  const [intent, setIntent]                   = useState('take_notes')
+  const [transcriptionModel, setTranscriptionModel] = useState('high_accuracy')
+  const [modelLoading, setModelLoading]       = useState(false)
 
   // 'idle' | 'validating' | 'valid' | 'rate_limited' | 'invalid'
   const [keyStatus, setKeyStatus] = useState('idle')
@@ -39,7 +39,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     setProvider(stored === 'browser' ? 'none' : stored)
     setApiKey(localStorage.getItem('vr_api_key')   ?? '')
     setIntent(localStorage.getItem('vr_intent')    ?? 'take_notes')
-    setUseHqTranscription(localStorage.getItem('voicerefine.useHighQualityTranscription') === 'true')
+    setTranscriptionModel(localStorage.getItem('voicerefine.useHighQualityTranscription') === 'true' ? 'high_accuracy' : 'lightweight')
     setModelLoading(isTranscriberLoading())
     setKeyStatus('idle')
     setKeyError('')
@@ -79,10 +79,9 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     keyStatus === 'rate_limited' ||
     override
 
-  const handleHqToggle = async (e) => {
-    const enabled = e.target.checked
-    setUseHqTranscription(enabled)
-    localStorage.setItem('voicerefine.useHighQualityTranscription', String(enabled))
+  const handleTranscriptionChange = async (model) => {
+    setTranscriptionModel(model)
+    localStorage.setItem('voicerefine.useHighQualityTranscription', model === 'high_accuracy' ? 'true' : 'false')
     resetTranscriber()
     setModelLoading(true)
     try {
@@ -209,22 +208,33 @@ export function SettingsPanel({ open, onClose, onSaved }) {
           {/* Transcription */}
           <section>
             <h3 className="text-xs font-medium text-[#6B5B52] uppercase tracking-[0.08em] mb-3">Transcription</h3>
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={useHqTranscription}
-                onChange={handleHqToggle}
-                disabled={modelLoading}
-                className="accent-[#7FAF8F] mt-0.5 flex-shrink-0"
-              />
-              <span className="flex flex-col gap-1">
-                <span className="text-sm text-[#3A2F2A]">Use higher-quality transcription</span>
-                {modelLoading
-                  ? <span className="text-xs text-[#8A766E]">Downloading model…</span>
-                  : <span className="text-xs text-[#8A766E]">Slower and requires a larger one-time download (~1 GB), but transcribes proper nouns and technical terms more accurately. Recommended for newer hardware.</span>
-                }
-              </span>
-            </label>
+            <div className="flex flex-col gap-2">
+              {[
+                { id: 'high_accuracy', label: 'Higher accuracy', badge: 'Recommended', description: 'Best transcription quality, especially for proper nouns and technical terms. Requires a one-time download of ~1 GB. Works best on hardware from the last few years.' },
+                { id: 'lightweight',   label: 'Lightweight',                            description: 'Smaller and faster. ~500 MB one-time download. Works on older hardware too, with slightly lower accuracy on technical content.' },
+              ].map(({ id, label, badge, description }) => (
+                <label key={id} className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="transcription"
+                    value={id}
+                    checked={transcriptionModel === id}
+                    onChange={() => handleTranscriptionChange(id)}
+                    disabled={modelLoading}
+                    className="accent-[#7FAF8F] mt-0.5 flex-shrink-0"
+                  />
+                  <span className="flex flex-col gap-0.5">
+                    <span className="flex items-center gap-2 text-sm text-[#3A2F2A] font-medium">
+                      {label}
+                      {badge && <span className="text-xs px-1.5 py-0.5 rounded-full bg-[#7FAF8F]/20 text-[#5C8F70] font-medium">{badge}</span>}
+                    </span>
+                    <span className="text-xs text-[#8A766E] leading-snug">
+                      {modelLoading && transcriptionModel === id ? 'Downloading model…' : description}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
           </section>
 
           {/* Intent */}
