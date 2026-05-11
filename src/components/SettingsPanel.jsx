@@ -6,10 +6,10 @@ import { preloadRefiner } from '../services/refine'
 import { Tooltip } from './Tooltip'
 
 const PROVIDER_OPTIONS = [
-  { value: 'browser', label: 'In-browser model', needsKey: false },
-  { value: 'gemini',  label: 'Cloud (Gemini)',    needsKey: true  },
-  { value: 'openai',  label: 'Cloud (OpenAI)',    needsKey: true  },
-  { value: 'ollama',  label: 'Local Ollama',      needsKey: false },
+  { value: 'browser', label: 'In-browser model', needsKey: false, description: 'Runs entirely on your device. No API key, no setup needed. Requires a one-time download (~1.2 GB) and works best on hardware from the last few years. If you have an older laptop, choose Gemini or OpenAI instead.' },
+  { value: 'gemini',  label: 'Cloud (Gemini)',    needsKey: true,  description: 'Faster and higher quality. Free API key from Google AI Studio.' },
+  { value: 'openai',  label: 'Cloud (OpenAI)',    needsKey: true,  description: 'Higher quality. Requires an OpenAI API key (paid).' },
+  { value: 'ollama',  label: 'Local Ollama',      needsKey: false, description: 'Free, runs on your machine. Requires running the app at localhost.' },
 ]
 
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -34,6 +34,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
   const [keyError, setKeyError]   = useState('')
   const [override, setOverride]   = useState(false)
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!open) return
     setProvider(localStorage.getItem('vr_provider') ?? 'browser')
@@ -45,6 +46,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     setKeyError('')
     setOverride(false)
   }, [open])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const needsKey = PROVIDER_OPTIONS.find(p => p.value === provider)?.needsKey ?? false
 
@@ -134,19 +136,23 @@ export function SettingsPanel({ open, onClose, onSaved }) {
             <h3 className="text-xs font-medium text-[#6B5B52] uppercase tracking-[0.08em] mb-3">Provider</h3>
             <div className="flex flex-col gap-2">
               {PROVIDER_OPTIONS.map(p => (
-                <label key={p.value} className="flex items-center gap-3 cursor-pointer">
+                <label key={p.value} className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="radio"
                     name="provider"
                     value={p.value}
                     checked={provider === p.value}
                     onChange={() => handleProviderChange(p.value)}
-                    className="accent-[#7FAF8F]"
+                    className="accent-[#7FAF8F] mt-0.5 flex-shrink-0"
                   />
-                  <span className="text-sm text-[#3A2F2A]">{p.label}</span>
-                  {p.value === 'ollama' && !isLocalhost && (
-                    <span className="text-xs text-[#8A766E]">— local only</span>
-                  )}
+                  <span className="flex flex-col gap-0.5">
+                    <span className="text-sm text-[#3A2F2A] font-medium">{p.label}</span>
+                    <span className="text-xs text-[#8A766E] leading-snug">
+                      {p.value === 'ollama' && !isLocalhost
+                        ? 'Only works when running the app at localhost.'
+                        : p.description}
+                    </span>
+                  </span>
                 </label>
               ))}
             </div>

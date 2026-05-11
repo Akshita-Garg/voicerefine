@@ -164,22 +164,31 @@ function App() {
 
         {/* In-browser model loading banner */}
         {provider === 'browser' && !refinerModelReady && !bannerDismissed && (
-          <div className="w-full max-w-5xl flex items-center justify-between gap-4 px-4 py-2.5 rounded-xl border border-[#7FAF8F]/30 bg-[rgba(127,175,143,0.08)] text-sm">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-2 h-2 rounded-full bg-[#7FAF8F] animate-pulse flex-shrink-0" />
-              <span className="text-[#5C8F70] truncate">
-                {refinerProgress
-                  ? `Downloading in-browser model… ${refinerProgress.progress}%${refinerProgress.file ? ` — ${refinerProgress.file.split('/').pop()}` : ''}`
-                  : 'Loading in-browser model…'
-                }
-              </span>
+          <div
+            className="w-full max-w-5xl rounded-2xl border border-[#7FAF8F]/25 px-5 py-4"
+            style={{ background: 'rgba(127,175,143,0.07)', boxShadow: '0 1px 3px rgba(58,47,42,0.05)' }}
+          >
+            <div className="flex items-center justify-between gap-4 mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#7FAF8F] animate-pulse" />
+                <span className="text-sm font-medium text-[#4A7A5E]">Downloading in-browser model</span>
+              </div>
+              <button
+                onClick={() => setBannerDismissed(true)}
+                className="text-xs text-[#8A766E] hover:text-[#3A2F2A] transition-colors leading-none"
+              >
+                Dismiss
+              </button>
             </div>
-            <button
-              onClick={() => setBannerDismissed(true)}
-              className="text-xs text-[#8A766E] hover:text-[#3A2F2A] flex-shrink-0 transition-colors"
-            >
-              Dismiss
-            </button>
+            <div className="w-full h-1 rounded-full bg-[rgba(127,175,143,0.2)] overflow-hidden">
+              <div
+                className="h-full rounded-full bg-[#7FAF8F] transition-all duration-500"
+                style={{ width: `${refinerProgress?.progress ?? 0}%` }}
+              />
+            </div>
+            {refinerProgress && (
+              <p className="mt-2 text-xs text-[#8A766E]">{refinerProgress.progress}% — one-time download, ~1.2 GB</p>
+            )}
           </div>
         )}
 

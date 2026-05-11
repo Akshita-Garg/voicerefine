@@ -64,7 +64,7 @@ export async function refine({ system, user }) {
     })
   } catch (err) {
     // fetch() itself throws only on network-level failures (offline, CORS, DNS)
-    throw new Error(`Network error. Is ${provider === 'ollama' ? 'Ollama running at localhost:11434?' : 'your internet connected?'} (${err.message})`)
+    throw new Error(`Network error. Is ${provider === 'ollama' ? 'Ollama running at localhost:11434?' : 'your internet connected?'} (${err.message})`, { cause: err })
   }
 
   if (!response.ok) {
@@ -90,8 +90,8 @@ export async function validateOllama() {
     const response = await fetch('http://localhost:11434/api/tags')
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
   } catch (err) {
-    if (err.message.startsWith('HTTP')) throw new Error(`Ollama responded with ${err.message}`)
-    throw new Error('Cannot reach Ollama at localhost:11434. Is it running? Try: ollama serve')
+    if (err.message.startsWith('HTTP')) throw new Error(`Ollama responded with ${err.message}`, { cause: err })
+    throw new Error('Cannot reach Ollama at localhost:11434. Is it running? Try: ollama serve', { cause: err })
   }
 }
 
@@ -120,7 +120,7 @@ export async function validateKey({ provider, apiKey }) {
       }),
     })
   } catch (err) {
-    throw new Error(`Network error during validation. (${err.message})`)
+    throw new Error(`Network error during validation. (${err.message})`, { cause: err })
   }
 
   if (!response.ok) {
