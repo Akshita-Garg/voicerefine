@@ -7,6 +7,7 @@ import { Tooltip } from './components/Tooltip'
 import { transcribe } from './services/transcribe'
 import { composePrompt } from './utils/composePrompt'
 import { refine } from './services/llm'
+import { preloadRefiner } from './services/refine'
 
 const MODES = [
   { value: 'light',    Icon: Wand2,    label: 'Light',    description: 'Clean up grammar and remove fillers, preserving your natural flow' },
@@ -23,6 +24,10 @@ const INTENT_LABELS = {
 
 function readIntent() {
   return localStorage.getItem('vr_intent') ?? 'take_notes'
+}
+
+function readProvider() {
+  return localStorage.getItem('vr_provider') ?? 'browser'
 }
 
 function readOnboardingDone() {
@@ -45,6 +50,11 @@ function App() {
   const [rawCopied, setRawCopied]         = useState(false)
   const [refinedCopied, setRefinedCopied] = useState(false)
 
+  const [provider, setProvider]               = useState(readProvider)
+  const [refinerModelReady, setRefinerModelReady] = useState(false)
+  const [refinerProgress, setRefinerProgress] = useState(null)
+  const [bannerDismissed, setBannerDismissed] = useState(false)
+
   const copyText = async (text, setCopied) => {
     try {
       await navigator.clipboard.writeText(text)
@@ -60,8 +70,15 @@ function App() {
   const [intentOpen, setIntentOpen]     = useState(false)
   const intentRef                       = useRef(null)
 
-  // Model loads lazily on first Record click — do not preload on mount.
+  // Transcription model loads lazily on first Record click — do not preload on mount.
   // Eager preload consumed ~2GB RAM immediately, slowing low-memory systems.
+
+  useEffect(() => {
+    if (provider !== 'browser') return
+    preloadRefiner((info) => setRefinerProgress(info))
+      .then(() => { setRefinerModelReady(true); setRefinerProgress(null) })
+      .catch(() => {})
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!intentOpen) return
@@ -103,7 +120,16 @@ function App() {
     }
   }, [rawTranscript, mode])
 
-  const handleSettingsSaved = () => setIntent(readIntent())
+  const handleSettingsSaved = () => {
+    setIntent(readIntent())
+    const newProvider = readProvider()
+    setProvider(newProvider)
+    if (newProvider === 'browser' && !refinerModelReady) {
+      preloadRefiner((info) => setRefinerProgress(info))
+        .then(() => { setRefinerModelReady(true); setRefinerProgress(null) })
+        .catch(() => {})
+    }
+  }
 
   const handleIntentChange = (val) => {
     localStorage.setItem('vr_intent', val)
@@ -135,6 +161,27 @@ function App() {
       </header>
 
       <main className="flex flex-col items-center gap-8 py-12 px-6">
+
+        {/* In-browser model loading banner */}
+        {provider === 'browser' && !refinerModelReady && !bannerDismissed && (
+          <div className="w-full max-w-5xl flex items-center justify-between gap-4 px-4 py-2.5 rounded-xl border border-[#7FAF8F]/30 bg-[rgba(127,175,143,0.08)] text-sm">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-2 h-2 rounded-full bg-[#7FAF8F] animate-pulse flex-shrink-0" />
+              <span className="text-[#5C8F70] truncate">
+                {refinerProgress
+                  ? `Downloading in-browser model… ${refinerProgress.progress}%${refinerProgress.file ? ` — ${refinerProgress.file.split('/').pop()}` : ''}`
+                  : 'Loading in-browser model…'
+                }
+              </span>
+            </div>
+            <button
+              onClick={() => setBannerDismissed(true)}
+              className="text-xs text-[#8A766E] hover:text-[#3A2F2A] flex-shrink-0 transition-colors"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {/* Mic + Refine */}
         <div className="flex flex-col items-center gap-3">

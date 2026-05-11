@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react'
 import { Zap, PenLine, Brain, Mic2 } from 'lucide-react'
 import { validateKey } from '../services/llm'
 import { resetTranscriber, preloadTranscriber, isTranscriberLoading } from '../services/transcribe'
+import { preloadRefiner } from '../services/refine'
 import { Tooltip } from './Tooltip'
 
 const PROVIDER_OPTIONS = [
-  { value: 'gemini', label: 'Gemini',       needsKey: true  },
-  { value: 'openai', label: 'OpenAI',       needsKey: true  },
-  { value: 'ollama', label: 'Local Ollama', needsKey: false },
+  { value: 'browser', label: 'In-browser model', needsKey: false },
+  { value: 'gemini',  label: 'Cloud (Gemini)',    needsKey: true  },
+  { value: 'openai',  label: 'Cloud (OpenAI)',    needsKey: true  },
+  { value: 'ollama',  label: 'Local Ollama',      needsKey: false },
 ]
 
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -34,7 +36,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
 
   useEffect(() => {
     if (!open) return
-    setProvider(localStorage.getItem('vr_provider') ?? 'ollama')
+    setProvider(localStorage.getItem('vr_provider') ?? 'browser')
     setApiKey(localStorage.getItem('vr_api_key')   ?? '')
     setIntent(localStorage.getItem('vr_intent')    ?? 'take_notes')
     setUseHqTranscription(localStorage.getItem('voicerefine.useHighQualityTranscription') === 'true')
@@ -51,6 +53,7 @@ export function SettingsPanel({ open, onClose, onSaved }) {
     setKeyStatus('idle')
     setKeyError('')
     setOverride(false)
+    if (val === 'browser') preloadRefiner()
   }
 
   const handleValidate = async () => {
@@ -70,7 +73,8 @@ export function SettingsPanel({ open, onClose, onSaved }) {
   }
 
   const canSave =
-    !needsKey ||
+    provider === 'browser' ||
+    provider === 'ollama' ||
     keyStatus === 'valid' ||
     keyStatus === 'rate_limited' ||
     override

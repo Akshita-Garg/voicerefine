@@ -1,3 +1,5 @@
+import { refineLocal } from './refine'
+
 // All three providers speak the OpenAI chat/completions format.
 // Gemini supports it via their OpenAI-compatible layer at a different base URL.
 const PROVIDERS = {
@@ -38,6 +40,7 @@ function getProviderConfig() {
  */
 export async function refine({ system, user }) {
   const { provider, apiKey } = getProviderConfig()
+  if (provider === 'browser') return refineLocal(system, user)
   const config = PROVIDERS[provider]
   if (!config) throw new Error(`Unknown provider: "${provider}"`)
 

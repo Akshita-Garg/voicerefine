@@ -10,9 +10,10 @@ const INTENTS = [
 ]
 
 const PROVIDERS = [
-  { value: 'gemini', label: 'Gemini',       needsKey: true,  description: 'Free tier available. Bring your own key' },
-  { value: 'openai', label: 'OpenAI',       needsKey: true,  description: 'GPT-4o mini. Bring your own key' },
-  { value: 'ollama', label: 'Local Ollama', needsKey: false, description: 'Free, runs on your machine. Requires running the app at localhost.' },
+  { value: 'browser', label: 'In-browser model', recommended: true, needsKey: false, description: 'Runs entirely on your device. No API key, no setup needed. Requires a one-time download (~1.2 GB) and works best on hardware from the last few years. If you have an older laptop, choose Gemini or OpenAI instead.' },
+  { value: 'gemini',  label: 'Cloud (Gemini)',    needsKey: true,  description: 'Faster and higher quality. Free API key from Google AI Studio.' },
+  { value: 'openai',  label: 'Cloud (OpenAI)',    needsKey: true,  description: 'Higher quality. Requires an OpenAI API key (paid).' },
+  { value: 'ollama',  label: 'Local Ollama',      needsKey: false, description: 'Free, runs on your machine. Requires running the app at localhost.' },
 ]
 
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -61,7 +62,7 @@ function Step1({ intent, onSelect, onContinue }) {
 }
 
 function Step2({ onComplete }) {
-  const [provider, setProvider]   = useState(null)
+  const [provider, setProvider]   = useState('browser')
   const [apiKey, setApiKey]       = useState('')
   const [status, setStatus]       = useState('idle') // 'idle' | 'checking' | 'valid' | 'rate_limited' | 'invalid'
   const [statusMsg, setStatusMsg] = useState('')
@@ -98,11 +99,10 @@ function Step2({ onComplete }) {
 
   const needsKey = PROVIDERS.find(p => p.value === provider)?.needsKey ?? false
 
-  const canContinue = provider && (
-    status === 'valid' ||
-    status === 'rate_limited' ||
-    override
-  )
+  const canContinue =
+    provider === 'browser' ||
+    provider === 'ollama' ||
+    (provider && (status === 'valid' || status === 'rate_limited' || override))
 
   const handleComplete = () => {
     localStorage.setItem('vr_provider', provider)
@@ -119,7 +119,7 @@ function Step2({ onComplete }) {
       </div>
 
       <div className="flex flex-col gap-2 w-full">
-        {PROVIDERS.map(({ value, label, description }) => {
+        {PROVIDERS.map(({ value, label, recommended, description }) => {
           const selected = provider === value
           return (
             <button
@@ -132,8 +132,11 @@ function Step2({ onComplete }) {
               }`}
               style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
             >
-              <span className={`text-sm font-semibold ${selected ? 'text-[#3A2F2A]' : 'text-[#3A2F2A]'}`}>{label}</span>
-              <span className="text-xs text-[#8A766E] ml-2">{description}</span>
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-sm font-semibold text-[#3A2F2A]">{label}</span>
+                {recommended && <span className="text-xs px-1.5 py-0.5 rounded-full bg-[#7FAF8F]/20 text-[#5C8F70] font-medium">Recommended</span>}
+              </div>
+              <p className="text-xs text-[#8A766E] leading-snug">{description}</p>
             </button>
           )
         })}
