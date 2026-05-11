@@ -12,8 +12,10 @@ const INTENTS = [
 const PROVIDERS = [
   { value: 'gemini', label: 'Gemini',       needsKey: true,  description: 'Free tier available. Bring your own key' },
   { value: 'openai', label: 'OpenAI',       needsKey: true,  description: 'GPT-4o mini. Bring your own key' },
-  { value: 'ollama', label: 'Local Ollama', needsKey: false, description: 'Free, runs on your machine' },
+  { value: 'ollama', label: 'Local Ollama', needsKey: false, description: 'Free, runs on your machine. Requires running the app at localhost.' },
 ]
+
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
 
 function Step1({ intent, onSelect, onContinue }) {
   return (
@@ -169,21 +171,33 @@ function Step2({ onComplete }) {
             className="rounded-xl p-4 border border-[rgba(58,47,42,0.08)] text-sm text-[#3A2F2A]"
             style={{ background: '#DFC8BE' }}
           >
-            <p className="font-medium mb-1">Make sure Ollama is running:</p>
-            <code className="text-xs bg-[rgba(58,47,42,0.08)] px-2 py-1 rounded font-mono">ollama serve</code>
-            <p className="text-xs text-[#8A766E] mt-2">
-              Also pull the model if you haven't: <code className="font-mono">ollama pull gemma3:1b</code>
-            </p>
+            {isLocalhost ? (
+              <>
+                <p className="font-medium mb-1">Make sure Ollama is running:</p>
+                <code className="text-xs bg-[rgba(58,47,42,0.08)] px-2 py-1 rounded font-mono">ollama serve</code>
+                <p className="text-xs text-[#8A766E] mt-2">
+                  Also pull the model if you haven't: <code className="font-mono">ollama pull gemma3:1b</code>
+                </p>
+              </>
+            ) : (
+              <p className="text-[#8A766E]">
+                Local Ollama only works when running the app at <code className="font-mono text-xs">localhost</code>. It cannot reach your machine from a hosted deployment. Choose Gemini or OpenAI instead, or <a href="https://github.com/Akshita-Garg/voicerefine" className="underline hover:text-[#3A2F2A]">run the app locally</a>.
+              </p>
+            )}
           </div>
-          <button
-            onClick={handleValidate}
-            disabled={status === 'checking'}
-            className="self-start px-4 py-2 rounded-lg text-sm text-[#6B5B52] hover:text-[#3A2F2A] border border-[rgba(58,47,42,0.08)] disabled:opacity-40 transition-colors"
-            style={{ background: '#DFC8BE' }}
-          >
-            {status === 'checking' ? 'Checking…' : 'Check connection'}
-          </button>
-          <ValidationFeedback status={status} message={statusMsg} override={override} onOverride={setOverride} />
+          {isLocalhost && (
+            <>
+              <button
+                onClick={handleValidate}
+                disabled={status === 'checking'}
+                className="self-start px-4 py-2 rounded-lg text-sm text-[#6B5B52] hover:text-[#3A2F2A] border border-[rgba(58,47,42,0.08)] disabled:opacity-40 transition-colors"
+                style={{ background: '#DFC8BE' }}
+              >
+                {status === 'checking' ? 'Checking…' : 'Check connection'}
+              </button>
+              <ValidationFeedback status={status} message={statusMsg} override={override} onOverride={setOverride} />
+            </>
+          )}
         </div>
       )}
 

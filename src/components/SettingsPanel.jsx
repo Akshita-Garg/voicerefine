@@ -10,6 +10,8 @@ const PROVIDER_OPTIONS = [
   { value: 'ollama', label: 'Local Ollama', needsKey: false },
 ]
 
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+
 
 const INTENT_OPTIONS = [
   { value: 'quick_capture',     Icon: Zap,     label: 'Quick capture',  description: "You want a quick clean-up of something you dictated" },
@@ -138,6 +140,9 @@ export function SettingsPanel({ open, onClose, onSaved }) {
                     className="accent-[#7FAF8F]"
                   />
                   <span className="text-sm text-[#3A2F2A]">{p.label}</span>
+                  {p.value === 'ollama' && !isLocalhost && (
+                    <span className="text-xs text-[#8A766E]">— local only</span>
+                  )}
                 </label>
               ))}
             </div>
