@@ -73,7 +73,9 @@ export async function refine({ system, user }) {
   }
 
   const data = await response.json()
-  return data.choices[0].message.content.trim()
+  const content = data?.choices?.[0]?.message?.content
+  if (!content) throw new Error('Unexpected response format from provider')
+  return content.trim()
 }
 
 /**

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Wand2, List, FileText, Zap, PenLine, Brain, Mic2 } from 'lucide-react'
+import { Wand2, List, FileText, Zap, PenLine, Brain, Mic2, Copy, Check } from 'lucide-react'
 import { RecordButton } from './components/RecordButton'
 import { SettingsPanel } from './components/SettingsPanel'
 import { Onboarding } from './components/Onboarding'
@@ -41,6 +41,19 @@ function App() {
   const [refineError, setRefineError] = useState(null)
 
   const [isRecording, setIsRecording] = useState(false)
+
+  const [rawCopied, setRawCopied]         = useState(false)
+  const [refinedCopied, setRefinedCopied] = useState(false)
+
+  const copyText = async (text, setCopied) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // clipboard unavailable — checkmark intentionally does not flash
+    }
+  }
 
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [intent, setIntent]             = useState(readIntent)
@@ -212,12 +225,21 @@ function App() {
                   Raw Transcript
                 </h2>
                 {rawTranscript && (
-                  <button
-                    onClick={() => setRawTranscript('')}
-                    className="text-xs text-[#8A766E] hover:text-red-600 transition-colors"
-                  >
-                    Clear
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => copyText(rawTranscript, setRawCopied)}
+                      className="text-[#8A766E] hover:text-[#3A2F2A] transition-colors"
+                      title="Copy"
+                    >
+                      {rawCopied ? <Check size={13} /> : <Copy size={13} />}
+                    </button>
+                    <button
+                      onClick={() => setRawTranscript('')}
+                      className="text-xs text-[#8A766E] hover:text-red-600 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </div>
                 )}
               </div>
               <textarea
@@ -232,9 +254,20 @@ function App() {
               className="rounded-xl p-5 border border-[rgba(58,47,42,0.08)]"
               style={{ background: '#E6CFC7', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
             >
-              <h2 className="text-xs font-semibold text-[#6B5B52] uppercase tracking-[0.08em] mb-3">
-                Refined Output
-              </h2>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xs font-semibold text-[#6B5B52] uppercase tracking-[0.08em]">
+                  Refined Output
+                </h2>
+                {refinedOutput && (
+                  <button
+                    onClick={() => copyText(refinedOutput, setRefinedCopied)}
+                    className="text-[#8A766E] hover:text-[#3A2F2A] transition-colors"
+                    title="Copy"
+                  >
+                    {refinedCopied ? <Check size={13} /> : <Copy size={13} />}
+                  </button>
+                )}
+              </div>
               <div className="h-52 overflow-y-auto">
                 {refineError ? (
                   <p className="text-red-700 text-sm">{refineError}</p>

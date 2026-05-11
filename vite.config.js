@@ -13,4 +13,15 @@ export default defineConfig({
       'Cross-Origin-Embedder-Policy': 'credentialless',
     },
   },
+  build: {
+    chunkSizeWarningLimit: 600,
+    rolldownOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('@huggingface/transformers')) return 'transformers'
+          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) return 'react-vendor'
+        },
+      },
+    },
+  },
 })

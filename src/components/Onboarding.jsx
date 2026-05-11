@@ -38,7 +38,7 @@ function Step1({ intent, onSelect, onContinue }) {
               style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
             >
               <Icon size={18} strokeWidth={1.75} color={selected ? '#6FA287' : '#8A766E'} className="mb-2" />
-              <p className={`text-sm font-semibold mb-0.5 ${selected ? 'text-[#3A2F2A]' : 'text-[#3A2F2A]'}`}>{label}</p>
+              <p className="text-sm font-semibold mb-0.5 text-[#3A2F2A]">{label}</p>
               <p className="text-xs text-[#8A766E] leading-snug">{description}</p>
             </button>
           )
